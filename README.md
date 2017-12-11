@@ -1,7 +1,37 @@
 # CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+In this project I implemented a Model Predictive Control to drive the car around the track. 
 
 ---
+
+## The Model
+To model the behavoir of the car, I used a kinematic model. This is a simplification of the dynamics model, by ignoring entities as tire forces, grativity and mass of the vehicle, but it works well at low and moderate speed. The state is composed by 6 elements:
+- x coordinate
+- y coordinate
+- orientation angle (psi)
+- velocity
+- cross-track error (cte)
+- psi error (epsi): difference between vehicle orientation and trajectory orientation.
+
+The control imput vector is composed by the following entities:
+- steering angle
+- acceleration
+
+The acceleration can be positive (throttle) or negative (brake).
+
+## Timestep Length and Elapsed Duration (N & dt)
+The prediction horizon T is the duration time we consider to compute the next commands. T is the product of two variables, N (the number of timesteps in the horizon) and dt (time between actuations).
+We need to choose N, dt, and T for keeping into mind that T should be as large as possible, while dt should be as small as possible. In our case, T should be a few seconds. After several test, I choose to set N = 15 and dt = 0.1. This means that T is equal to 1 second. This can be reaseable for a self-driving car control, where the enviroment is very dynamic.
+
+## Polynomial Fitting and MPC Preprocessing
+To generate a trajectory, I used the function polyfit to fit a 3rd order polynomial to the given x and y coordinates representing waypoints.
+The simulator returns waypoints in map's coordinate system. I tranformed these waypoints in the car's coordinate system to make it easier to both display them and to calculate the CTE and Epsi values for the model predictive controller.
+
+# Model Predictive Control with Latency
+
+In a real system, an actuation command is not executes instantly. In fact, there is a delay as the command propagates through the car. The simulator simulate this behevoir adding a constant delay of 100 milliseconds. In order to handle this problem, I predict the new state using the kinematic motion equations (see lines 115-120). After I used the new state for the next step of the model predictive control.
+
+
+
 
 ## Dependencies
 
