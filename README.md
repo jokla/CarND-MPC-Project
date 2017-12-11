@@ -13,7 +13,10 @@ To model the behavoir of the car, I used a kinematic model. This is a simplifica
 - psi error (epsi): difference between vehicle orientation and trajectory orientation.
 
 The control imput vector is composed by the following entities:
-- 
+- steering angle
+- acceleration
+
+The acceleration can be positive (throttle) or negative (brake).
 
 ## Timestep Length and Elapsed Duration (N & dt)
 The prediction horizon T is the duration time we consider to compute the next commands. T is the product of two variables, N (the number of timesteps in the horizon) and dt (time between actuations).
