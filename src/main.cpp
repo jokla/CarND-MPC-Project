@@ -67,8 +67,6 @@ string hasData(string s) {
 }
 
 
-
-
 int main() {
   uWS::Hub h;
 
@@ -76,7 +74,7 @@ int main() {
   MPC mpc;
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                     uWS::OpCode opCode) {
+              uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -108,50 +106,41 @@ int main() {
           double throttle_value = j[1]["throttle"];
 
           // Predict new state in 100 ms
-           // Recall the equations for the model:
-           // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
-           // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
-           // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
-           // v_[t+1] = v[t] + a[t] * dt
+          // Recall the equations for the model:
+          // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+          // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+          // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+          // v_[t+1] = v[t] + a[t] * dt
           // Create a new vector for the next state.
           double latency = 0.1;
-           Eigen::VectorXd next_state(6);
-           next_state(0) = px + v * cos(psi) * latency;
-           next_state(1) = py + v * sin(psi) * latency;
-           next_state(2) = psi + v / mpc.Lf_ * steer_value * latency;
-           next_state(3) = v + throttle_value * latency;
+          Eigen::VectorXd next_state(6);
+          next_state(0) = px + v * cos(psi) * latency;
+          next_state(1) = py + v * sin(psi) * latency;
+          next_state(2) = psi + v / mpc.Lf_ * steer_value * latency;
+          next_state(3) = v + throttle_value * latency;
 
+          // Convert waypointsv from global to the car coordinates
+          Eigen::VectorXd ptsx_loc(ptsx.size());
+          Eigen::VectorXd ptsy_loc(ptsy.size());
+          for (int i = 0; i < ptsx.size(); ++i) {
+            ptsx_loc(i) = (ptsx[i] - next_state(0)) * cos( next_state(2))  + (ptsy[i] -  next_state(1)) * sin(next_state(2));
+            ptsy_loc(i) = -(ptsx[i] - next_state(0)) * sin( next_state(2)) + (ptsy[i] - next_state(1)) * cos(next_state(2));
+          }
 
-           // Convert waypointsv from global to the car coordinates
-//           Eigen::VectorXd ptsx_loc(ptsx.size());
-//           Eigen::VectorXd ptsy_loc(ptsy.size());
-//           for (int i = 0; i < ptsx.size(); ++i) {
-//             ptsx_loc(i) = (ptsx[i] - next_state(0)) * cos( next_state(2))  + (ptsy[i] -  next_state(1)) * sin(next_state(2));
-//             ptsy_loc(i) = -(ptsx[i] - next_state(0)) * sin( next_state(2)) + (ptsy[i] - next_state(1)) * cos(next_state(2));
-//           }
+          auto coeffs = polyfit(ptsx_loc, ptsy_loc, 3);
 
+          // The cross track error is calculated by evaluating at polynomial at x, f(x)
+          // and subtracting y.
+          double cte =   polyeval(coeffs, 0);
+          // Due to the sign starting at 0, the orientation error is -f'(x).
+          // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
+          double epsi = -atan(coeffs(1));
 
-           Eigen::VectorXd ptsx_loc(ptsx.size());
-           Eigen::VectorXd ptsy_loc(ptsy.size());
-           for (int i = 0; i < ptsx.size(); ++i) {
-             ptsx_loc(i) = (ptsx[i] - px) * cos( psi)  + (ptsy[i] - py) * sin(psi);
-             ptsy_loc(i) = -(ptsx[i] - px) * sin( psi) + (ptsy[i] - py) * cos(psi);
-           }
+          Eigen::VectorXd state(6);
+          state << 0.0, 0.0, 0.0, next_state(3), cte, epsi;
 
-         auto coeffs = polyfit(ptsx_loc, ptsy_loc, 3);
-
-         // The cross track error is calculated by evaluating at polynomial at x, f(x)
-         // and subtracting y.
-         double cte =   polyeval(coeffs, 0);
-         // Due to the sign starting at 0, the orientation error is -f'(x).
-         // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
-         double epsi = -atan(coeffs(1));
-
-         Eigen::VectorXd state(6);
-         state << 0.0, 0.0, 0.0, v, cte, epsi;
-
-
-         auto result = mpc.Solve(state, coeffs);
+          // Call MPC solver
+          auto result = mpc.Solve(state, coeffs);
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -159,12 +148,11 @@ int main() {
           msgJson["steering_angle"] = - result[0] / deg2rad(25);
           msgJson["throttle"] = result[1];
 
-           std::cout << "steering_angle"<< result[0] / deg2rad(25) << std::endl;
+          std::cout << "steering_angle"<< result[0] / deg2rad(25) << std::endl;
+          std::cout << "throttle" << result[1] << std::endl;
 
-           std::cout << "throttle" << result[1] << std::endl;
-
-          //Display the MPC predicted trajectory 
-         // vector<double> mpc_x_vals;
+          //Display the MPC predicted trajectory
+          //vector<double> mpc_x_vals;
           //vector<double> mpc_y_vals;
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
@@ -182,7 +170,6 @@ int main() {
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
-
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           //std::cout << msg << std::endl;
@@ -210,7 +197,7 @@ int main() {
   // program
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
-                     size_t, size_t) {
+                  size_t, size_t) {
     const std::string s = "<h1>Hello world!</h1>";
     if (req.getUrl().valueLength == 1) {
       res->end(s.data(), s.length());
@@ -225,7 +212,7 @@ int main() {
   });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
-                         char *message, size_t length) {
+                    char *message, size_t length) {
     ws.close();
     std::cout << "Disconnected" << std::endl;
   });
