@@ -21,7 +21,14 @@ The acceleration can be positive (throttle) or negative (brake).
 ![alt text](https://github.com/jokla/CarND-MPC-Project/blob/master/imgs/equations.png)
 
 ## Timestep Length and Elapsed Duration (N & dt)
-The prediction horizon T is the duration time we consider to compute the next commands. T is the product of two variables, N (the number of timesteps in the horizon) and dt (time between actuations). We need to choose N, dt, and T for keeping into mind that T should be as large as possible, while dt should be as small as possible. In our case, T should be a few seconds. After several test, I choose to set N = 15 and dt = 0.1. This means that T is equal to 1 second. This can be reasonable for a self-driving car control, where the environment is very dynamic.
+The prediction horizon T is the duration time we consider to compute the next commands. T is the product of two variables, N (the number of timesteps in the horizon) and dt (time between actuations). We need to choose N, dt, and T for keeping into mind that T should be as large as possible, while dt should be as small as possible. In our case, T should be a few seconds. I choose to fix T equal to 1 second, that is enough to plan correctly to follow the road with curves. This can be reasonable for a self-driving car control, where the environment is also changing very dynamically.
+I tested serveral comination of N and dt: 
+- N = 40 and dt = 0.025 -> good result but too many points 
+- N = 20 and dt = 0.05 -> good result
+- N = 10 and dt = 0.1 -> best result with less points than previous cases
+- N = 5 and dt = 0.2 -> not working, the car is not following the road
+
+Finally, I choose to set N = 10 and dt = 0.1 since we have also to take into account that the computation has to be real-time. A large amount of points with a small dt would make havier the optimization. 
 
 ## Polynomial Fitting and MPC Preprocessing
 To generate a trajectory, I used the function polyfit to fit a 3rd order polynomial to the given x and y coordinates representing waypoints. The simulator returns waypoints to map's coordinate system. I transformed these waypoints in the car's coordinate system to make it easier to both display them and to calculate the CTE and Epsi values for the model predictive controller.
